@@ -4,9 +4,10 @@
 #include <avr/pgmspace.h>
 #include <util/delay.h>
 
-#define TIMER1_PRESCALE 1024
-#define TIMER1_SLOW ( F_CPU / TIMER1_PRESCALE )
-#define TIMER1_FAST ( F_CPU / TIMER1_PRESCALE / 16 )
+#define TIMER0_PRESCALE 1024
+#define TIMER0_SW_SCALE 76 /* Chosen to avoid overflow for OCR0A */
+#define TIMER0_SLOW ( F_CPU / TIMER0_PRESCALE / TIMER0_SW_SCALE / 1 )
+#define TIMER0_FAST ( F_CPU / TIMER0_PRESCALE / TIMER0_SW_SCALE / 16 )
 
 #define F_LED 400000
 #define LED_WIDTH ( F_CPU / F_LED )
@@ -17,8 +18,8 @@
 #define TXD_BIT 1
 #define XCK_DDR DDRD
 #define TXD_DDR DDRD
-#define OC0B_BIT 5
-#define OC0B_DDR DDRD
+#define OC1B_BIT 2
+#define OC1B_DDR DDRB
 
 #define PIXELS 64
 
@@ -126,17 +127,17 @@ void set_animation_speed ( void ) {
 	if ( PIND & _BV ( PD7 ) ) {
 
 		/* Go faster if button not pressed */
-		OCR1A = TIMER1_FAST;
+		OCR0A = TIMER0_FAST;
 
 	} else {
 
 		/* Go slower if button pressed */
-		OCR1A = TIMER1_SLOW;
+		OCR0A = TIMER0_SLOW;
 
 	}
 
 	/* Avoid potentially overflowing the new threshold */
-	TCNT1 = 0;
+	TCNT0 = 0;
 }
 
 void set_which_animation ( void ) {
@@ -181,19 +182,20 @@ int main ( void ) {
 	PCMSK2 = _BV ( PCINT22 ) | _BV ( PCINT23 );
 
 	/* Configure timer 0 */
-	OC0B_DDR |= _BV ( OC0B_BIT );
-	TCCR0A = ( _BV ( COM0B1 ) | _BV ( WGM01 ) | _BV ( WGM00 ) );
-	TCCR0B = ( _BV ( WGM02 ) | _BV ( CS00 ) );
-	OCR0A = ( LED_WIDTH - 1 );
-	OCR0B = ( LED_WIDTH_HIGH - 1 );
+	TCCR0A = ( _BV ( WGM01 ) );
+	TCCR0B = ( _BV ( CS02 ) | _BV ( CS00 ) );
+	TIMSK0 = ( _BV ( OCIE0A ) );
 
 	// sync timer 1
-	TCNT0 = 0xe8;
+	TCNT1 = 0xe8;
 	UBRR0L = ( LED_WIDTH_LOW - 1 );
 
 	/* Configure timer 1 */
-	TCCR1B = ( _BV ( WGM12 ) | _BV ( CS12 ) | _BV ( CS10) );
-	TIMSK1 = ( _BV ( OCIE1A ) );
+	OC1B_DDR |= _BV ( OC1B_BIT ) ;
+	TCCR1A = ( _BV ( COM1B1 ) | _BV ( WGM11 ) | _BV ( WGM10 ) );
+	TCCR1B = ( _BV ( WGM13 ) | _BV ( WGM12 ) | _BV ( CS10 ) );
+	OCR1AL = ( LED_WIDTH - 1 );
+	OCR1BL = ( LED_WIDTH_HIGH - 1 );
 
 	/* Set initial animation speed */
 	set_animation_speed();
@@ -249,9 +251,17 @@ ISR ( PCINT2_vect ) {
 	set_which_animation();
 }
 
-ISR ( TIMER1_COMPA_vect ) {
+ISR ( TIMER0_COMPA_vect ) {
+	static uint8_t scaler;
+
+	/* Scale interrupt rate (in addition to the hardware prescaler) */
+	scaler++;
+	if ( scaler != TIMER0_SW_SCALE )
+		return;
+
+	/* Reset scaler */
+	scaler = 0;
 
 	/* Enable UDR empty interrupt to start transmission */
 	UCSR0B = ( _BV ( UDRIE0 ) | _BV ( TXEN0 ) );
-
 }
