@@ -14,6 +14,8 @@
 #define LED_WIDTH_HIGH ( LED_WIDTH / 5 )
 #define LED_WIDTH_LOW ( LED_WIDTH / 2 )
 
+#define ICP_SYNC_DELAY 2
+
 #define XCK_BIT 4
 #define TXD_BIT 1
 #define XCK_DDR DDRD
@@ -121,6 +123,46 @@ uint8_t frame = 0;
 /* Current position within frame */
 uint8_t position = 0;
 
+/* Measure XCK phase offset */
+uint8_t measure_offset ( void ) {
+
+	/* Clear transmit complete flag */
+	UCSR0A = ( _BV ( TXC0 ) );
+
+	/* Start transmitting any (dummy) byte */
+	UDR0 = 0;
+
+	/* Wait for transmit to complete */
+	while ( ! ( UCSR0A & _BV ( TXC0 ) ) ) {
+		/* Do nothing */
+	}
+
+	/* Return offset measurement */
+	return ICR1L;
+}
+
+/* Adjust OC1B phase offset */
+void adjust_offset ( uint8_t change ) {
+
+	/* Delay timer to adjust phase */
+	TCNT1 -= change;
+}
+
+/* Align OC1B with XCK */
+void align_clocks ( void ) {
+	uint8_t offset;
+
+	/* Adjust OC1B by offset amount */
+	offset = measure_offset();
+	adjust_offset ( offset );
+
+	/* Correct for time to adjust, synchronise & perform edge detection */
+	offset = measure_offset();
+	offset *= 2;
+	offset -= ICP_SYNC_DELAY;
+	adjust_offset ( offset );
+}
+
 void set_animation_speed ( void ) {
 
 	/* Check if button is pressed*/
@@ -174,6 +216,7 @@ int main ( void ) {
 	TXD_DDR |= _BV ( TXD_BIT );
 	UCSR0B = ( _BV ( TXEN0 ) );
 	UCSR0C = ( _BV ( UMSEL01 ) | _BV ( UMSEL00 ) | _BV ( UCSZ00 ) );
+	UBRR0L = ( LED_WIDTH_LOW - 1 );
 
 	/* Configure button and pin change interrupt */
 	PORTD |= _BV ( PD6 );
@@ -186,16 +229,16 @@ int main ( void ) {
 	TCCR0B = ( _BV ( CS02 ) | _BV ( CS00 ) );
 	TIMSK0 = ( _BV ( OCIE0A ) );
 
-	// sync timer 1
-	TCNT1 = 0xe8;
-	UBRR0L = ( LED_WIDTH_LOW - 1 );
-
 	/* Configure timer 1 */
 	OC1B_DDR |= _BV ( OC1B_BIT ) ;
 	TCCR1A = ( _BV ( COM1B1 ) | _BV ( WGM11 ) | _BV ( WGM10 ) );
-	TCCR1B = ( _BV ( WGM13 ) | _BV ( WGM12 ) | _BV ( CS10 ) );
+	TCCR1B = ( _BV ( ICES1 ) | _BV ( WGM13 ) | _BV ( WGM12 ) |
+		   _BV ( CS10 ) );
 	OCR1AL = ( LED_WIDTH - 1 );
 	OCR1BL = ( LED_WIDTH_HIGH - 1 );
+
+	/* Align clocks */
+	align_clocks();
 
 	/* Set initial animation speed */
 	set_animation_speed();
