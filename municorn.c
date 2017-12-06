@@ -187,10 +187,10 @@ void set_which_animation ( void ) {
 	uint8_t current;
 
 	/* Get current state of button */
-	current = ( PIND & _BV ( PD6 ) );
+	current = ( ( ~PIND ) & _BV ( PD6 ) );
 
 	/* Check if button has just been pressed */
-	if ( previous & ~current ) {
+	if ( current & ~previous ) {
 
 		/* Go to next animation */
 		animation++;
