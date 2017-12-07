@@ -235,7 +235,6 @@ int main ( void ) {
 	TIMSK0 = ( _BV ( OCIE0A ) );
 
 	/* Configure timer 1 */
-	OC1B_DDR |= _BV ( OC1B_BIT ) ;
 	TCCR1A = ( _BV ( COM1B1 ) | _BV ( WGM11 ) | _BV ( WGM10 ) );
 	TCCR1B = ( _BV ( ICES1 ) | _BV ( WGM13 ) | _BV ( WGM12 ) |
 		   _BV ( CS10 ) );
@@ -273,8 +272,8 @@ ISR ( USART_UDRE_vect ) {
 	if ( position != sizeof ( pictures[0] ) )
 		return;
 
-	/* Disable UDR empty interrupt */
-	UCSR0B = ( _BV ( TXEN0 ) );
+	/* Disable UDR empty interrupt & enable TX complete interupt */
+	UCSR0B = ( _BV ( TXCIE0 ) | _BV ( TXEN0 ) );
 
 	/* Reset position */
 	position = 0;
@@ -310,6 +309,15 @@ ISR ( TIMER0_COMPA_vect ) {
 	/* Reset scaler */
 	scaler = 0;
 
+	/* Turn on OC1B */
+	OC1B_DDR |= _BV ( OC1B_BIT );
+
 	/* Enable UDR empty interrupt to start transmission */
 	UCSR0B = ( _BV ( UDRIE0 ) | _BV ( TXEN0 ) );
+}
+
+ISR ( USART_TX_vect ) {
+
+	/* Turn off OC1B */
+	OC1B_DDR &= ~_BV ( OC1B_BIT );
 }
