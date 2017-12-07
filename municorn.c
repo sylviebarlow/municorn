@@ -4,10 +4,15 @@
 #include <avr/pgmspace.h>
 #include <util/delay.h>
 
+#define FRAME_HZ_SLOW 1
+#define FRAME_HZ_FAST 16
+
 #define TIMER0_PRESCALE 1024
-#define TIMER0_SW_SCALE 76 /* Chosen to avoid overflow for OCR0A */
-#define TIMER0_SLOW ( F_CPU / TIMER0_PRESCALE / TIMER0_SW_SCALE / 1 )
-#define TIMER0_FAST ( F_CPU / TIMER0_PRESCALE / TIMER0_SW_SCALE / 16 )
+#define TIMER0_OCR_MAX 0xff
+#define TIMER0_HZ ( F_CPU / TIMER0_PRESCALE )
+#define TIMER0_SW_SCALE ( ( TIMER0_HZ / TIMER0_OCR_MAX / FRAME_HZ_SLOW ) + 1 )
+#define TIMER0_SLOW ( TIMER0_HZ / TIMER0_SW_SCALE / FRAME_HZ_SLOW )
+#define TIMER0_FAST ( TIMER0_HZ / TIMER0_SW_SCALE / FRAME_HZ_FAST )
 
 #define F_LED 400000
 #define LED_WIDTH ( F_CPU / F_LED )
