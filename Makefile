@@ -33,7 +33,7 @@ municorn.bin : municorn.c $(PNG_HS) Makefile
 		$< RGB:- | xxd -i > $@
 
 %.png : %.gif Makefile
-	convert -coalesce $< - | montage -coalesce -tile 1x -geometry 8x8 - $@
+	convert -coalesce $< - | montage -coalesce -tile 1x -geometry +0+0 - $@
 
 %.install : %.bin Makefile
 	avrdude -p $(MCU) -V -U $<
