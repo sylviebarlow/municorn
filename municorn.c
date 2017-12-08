@@ -15,9 +15,9 @@
 #define TIMER0_FAST ( TIMER0_HZ / TIMER0_SW_SCALE / FRAME_HZ_FAST )
 
 #define F_LED 400000
-#define LED_WIDTH ( F_CPU / F_LED )
-#define LED_WIDTH_HIGH ( LED_WIDTH / 5 )
-#define LED_WIDTH_LOW ( LED_WIDTH / 2 )
+#define LED_WIDTH_LOW ( ( F_CPU / F_LED ) / 2 )
+#define LED_WIDTH_FULL ( LED_WIDTH_LOW * 2 )
+#define LED_WIDTH_HIGH ( LED_WIDTH_FULL / 5 )
 
 #define ICP_SYNC_DELAY 2
 
@@ -238,7 +238,7 @@ int main ( void ) {
 	TCCR1A = ( _BV ( COM1B1 ) | _BV ( WGM11 ) | _BV ( WGM10 ) );
 	TCCR1B = ( _BV ( ICES1 ) | _BV ( WGM13 ) | _BV ( WGM12 ) |
 		   _BV ( CS10 ) );
-	OCR1AL = ( LED_WIDTH - 1 );
+	OCR1AL = ( LED_WIDTH_FULL - 1 );
 	OCR1BL = ( LED_WIDTH_HIGH - 1 );
 
 	/* Align clocks */
