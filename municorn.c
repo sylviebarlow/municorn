@@ -218,7 +218,6 @@ int main ( void ) {
 
 	/* Configure USART0 */
 	XCK_DDR |= _BV ( XCK_BIT );
-	TXD_DDR |= _BV ( TXD_BIT );
 	UCSR0B = ( _BV ( TXEN0 ) );
 	UCSR0C = ( _BV ( UMSEL01 ) | _BV ( UMSEL00 ) | _BV ( UCSZ00 ) );
 	UBRR0L = ( LED_WIDTH_LOW - 1 );
@@ -309,8 +308,9 @@ ISR ( TIMER0_COMPA_vect ) {
 	/* Reset scaler */
 	scaler = 0;
 
-	/* Turn on OC1B */
+	/* Turn on OC1B and TXD */
 	OC1B_DDR |= _BV ( OC1B_BIT );
+	TXD_DDR |= _BV ( TXD_BIT );
 
 	/* Enable UDR empty interrupt to start transmission */
 	UCSR0B = ( _BV ( UDRIE0 ) | _BV ( TXEN0 ) );
@@ -318,6 +318,7 @@ ISR ( TIMER0_COMPA_vect ) {
 
 ISR ( USART_TX_vect ) {
 
-	/* Turn off OC1B */
+	/* Turn off OC1B and TXD */
 	OC1B_DDR &= ~_BV ( OC1B_BIT );
+	TXD_DDR &= ~_BV ( TXD_BIT );
 }
