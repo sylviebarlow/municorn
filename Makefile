@@ -16,10 +16,13 @@ PNGS	+= $(patsubst %.gif,%.png,$(GIFS))
 PNGS	+= $(wildcard *.png)
 PNG_HS	:= $(patsubst %.png,%.png.h,$(PNGS))
 
-all : municorn.bin
+all : office.bin
 
-municorn.bin : municorn.c $(PNG_HS) Makefile
-	avr-gcc $(CFLAGS) -o $@ $<
+%.o : %.c municorn.h $(PNG_HS) Makefile
+	avr-gcc $(CFLAGS) -o $@ -c $<
+
+%.bin : %.o municorn.o Makefile
+	avr-gcc $(CFLAGS) -o $@ $< municorn.o
 
 %.lst : %.bin Makefile
 	avr-objdump -h -S $< > $@

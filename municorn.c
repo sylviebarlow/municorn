@@ -1,123 +1,8 @@
 #include <avr/io.h>
 #include <avr/sleep.h>
 #include <avr/interrupt.h>
-#include <avr/pgmspace.h>
 #include <util/delay.h>
-
-#define FRAME_HZ_SLOW 1
-#define FRAME_HZ_FAST 16
-
-#define TIMER0_PRESCALE 1024
-#define TIMER0_OCR_MAX 0xff
-#define TIMER0_HZ ( F_CPU / TIMER0_PRESCALE )
-#define TIMER0_SW_SCALE ( ( TIMER0_HZ / TIMER0_OCR_MAX / FRAME_HZ_SLOW ) + 1 )
-#define TIMER0_SLOW ( TIMER0_HZ / TIMER0_SW_SCALE / FRAME_HZ_SLOW )
-#define TIMER0_FAST ( TIMER0_HZ / TIMER0_SW_SCALE / FRAME_HZ_FAST )
-
-#define F_LED 800000
-#define LED_WIDTH_LOW ( ( F_CPU / F_LED ) / 2 )
-#define LED_WIDTH_FULL ( LED_WIDTH_LOW * 2 )
-#define LED_WIDTH_HIGH ( LED_WIDTH_FULL / 5 )
-
-#define ICP_SYNC_DELAY 2
-
-#define XCK_BIT 4
-#define TXD_BIT 1
-#define XCK_DDR DDRD
-#define TXD_DDR DDRD
-#define OC1B_BIT 2
-#define OC1B_DDR DDRB
-
-#define PIXELS 64
-
-struct pixel {
-	uint8_t green;
-	uint8_t red;
-	uint8_t blue;
-} __attribute__ (( packed ));
-
-struct picture {
-	struct pixel pixels[PIXELS];
-} __attribute__ (( packed ));
-
-struct animation {
-	const uint8_t *raw;
-	size_t len;
-};
-
-const uint8_t michael_raw[] PROGMEM = {
-	#include "michael.png.h"
-};
-
-const uint8_t molly_raw[] PROGMEM = {
-	#include "molly.png.h"
-};
-
-const uint8_t gavan_raw[] PROGMEM = {
-	#include "gavan.png.h"
-};
-
-const uint8_t anna_raw[] PROGMEM = {
-	#include "anna.png.h"
-};
-
-const uint8_t richard_raw[] PROGMEM = {
-	#include "richard.png.h"
-};
-
-const uint8_t nataliia_raw[] PROGMEM = {
-	#include "nataliia.png.h"
-};
-
-const uint8_t iliya_raw[] PROGMEM = {
-	#include "iliya.png.h"
-};
-
-const uint8_t calantha_raw[] PROGMEM = {
-	#include "calantha.png.h"
-};
-
-const uint8_t peter_raw[] PROGMEM = {
-	#include "peter.png.h"
-};
-struct animation animations[] = {
-	{
-		.raw = michael_raw,
-		.len = sizeof ( michael_raw ),
-	},
-	{
-		.raw = anna_raw,
-		.len = sizeof ( anna_raw ),
-	},
-	{
-		.raw = molly_raw,
-		.len = sizeof ( molly_raw ),
-	},
-	{
-		.raw = richard_raw,
-		.len = sizeof ( richard_raw ),
-	},
-	{
-		.raw = gavan_raw,
-		.len = sizeof ( gavan_raw ),
-	},
-	{
-		.raw = nataliia_raw,
-		.len = sizeof ( nataliia_raw ),
-	},
-	{
-		.raw = iliya_raw,
-		.len = sizeof ( iliya_raw ),
-	},
-	{
-		.raw = calantha_raw,
-		.len = sizeof ( calantha_raw ),
-	},
-	{
-		.raw = peter_raw,
-		.len = sizeof ( peter_raw ),
-	},
-};
+#include "municorn.h"
 
 /* Current animation */
 uint8_t animation = 0;
@@ -126,7 +11,7 @@ uint8_t animation = 0;
 uint8_t frame = 0;
 
 /* Current position within frame */
-uint8_t position = 0;
+uint16_t position = 0;
 
 /* Measure XCK phase offset */
 uint8_t measure_offset ( void ) {
@@ -174,7 +59,7 @@ void set_animation_speed ( void ) {
 	if ( PIND & _BV ( PD7 ) ) {
 
 		/* Go faster if button not pressed */
-		OCR0A = TIMER0_FAST;
+		OCR0A = timer0_fast;
 
 	} else {
 
@@ -204,8 +89,7 @@ void set_which_animation ( void ) {
 		frame = 0;
 
 		/* Reset to first animation if at end */
-		if ( animation == ( sizeof ( animations ) /
-				    sizeof ( animations[0] ) ) ) {
+		if ( animation == total_animations ) {
 			animation = 0;
 		}
 	}
@@ -256,19 +140,15 @@ int main ( void ) {
 }
 
 ISR ( USART_UDRE_vect ) {
-	struct picture *pictures =
-		( ( struct picture * ) animations[animation].raw );
-	struct picture *picture = &pictures[frame];
-	uint8_t *bytes = ( ( uint8_t * ) picture );
 
 	/* Write next byte to USART0 */
-	UDR0 = ( pgm_read_byte(&bytes[position]) / 3 );
+	UDR0 = ( byte_output ( animation, frame, position ) / 3 );
 
 	/* Move to next position */
 	position++;
 
 	/* Do nothing until we finish this frame */
-	if ( position != sizeof ( pictures[0] ) )
+	if ( position != total_rgb )
 		return;
 
 	/* Disable UDR empty interrupt & enable TX complete interupt */
@@ -281,7 +161,7 @@ ISR ( USART_UDRE_vect ) {
 	frame++;
 
 	/* Do nothing until we finish the last frame*/
-	if ( frame != ( animations[animation].len / sizeof ( pictures[0] ) ) )
+	if ( frame != animations[animation].total_frames )
 		return;
 
 	/* Reset to first frame */
