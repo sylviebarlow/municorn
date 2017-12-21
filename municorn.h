@@ -32,23 +32,9 @@ struct pixel {
 	uint8_t blue;
 } __attribute__ (( packed ));
 
-struct animation {
-	const uint8_t *raw;
-	uint8_t total_frames;
-};
-
-#define ANIMATION( data )					\
-	{							\
-		.raw = data,					\
-		.total_frames = ( sizeof ( data ) /		\
-				  sizeof ( struct picture ) ),	\
-	}
-
 extern uint8_t timer0_fast;
 extern uint16_t total_rgb;
-extern uint8_t total_animations;
-extern struct animation animations[];
-extern uint8_t byte_output ( uint8_t animation, uint8_t frame,
-			     uint16_t position );
+extern void next_animation ( void );
+extern uint8_t next_byte ( void );
 
 #endif /* MUNICORN_H */

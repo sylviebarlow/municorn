@@ -9,6 +9,17 @@ struct picture {
 	struct pixel pixels[PIXELS];
 } __attribute__ (( packed ));
 
+struct animation {
+	const uint8_t *start;
+	const uint8_t *end;
+};
+
+#define ANIMATION( data )					\
+	{							\
+		.start = data,					\
+		.end = ( data + sizeof ( data ) ),		\
+	}
+
 const uint8_t fire[] PROGMEM = {
 	#include "fire.png.h"
 };
@@ -81,13 +92,27 @@ uint8_t timer0_fast = TIMER0_FAST;
 
 uint16_t total_rgb = sizeof ( struct picture );
 
-uint8_t total_animations = ( sizeof ( animations ) / sizeof ( animations[0] ) );
+const uint8_t * start;
+const uint8_t * end;
+const uint8_t * position;
+uint8_t animation;
 
-uint8_t byte_output ( uint8_t animation, uint8_t frame, uint16_t position ) {
-	struct picture *pictures =
-		( ( struct picture * ) animations[animation].raw );
-	struct picture *picture = &pictures[frame];
-	uint8_t *bytes = ( ( uint8_t * ) picture );
+uint8_t next_byte ( void ) {
+	uint8_t byte = pgm_read_byte ( position );
+	position++;
+	if ( position == end ) {
+		position = start;
+	}
+	return byte;
+}
 
-	return pgm_read_byte(&bytes[position]);
+void next_animation ( void ) {
+	start = animations[animation].start;
+	position = start;
+	end = animations[animation].end;
+	animation++;
+	if ( animation == ( sizeof ( animations ) /
+			    sizeof ( animations[0] ) ) ) {
+		animation = 0;
+	}
 }

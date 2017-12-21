@@ -4,14 +4,8 @@
 #include <util/delay.h>
 #include "municorn.h"
 
-/* Current animation */
-uint8_t animation = 0;
-
-/* Current frame */
-uint8_t frame = 0;
-
 /* Current position within frame */
-uint16_t position = 0;
+uint16_t idx = 0;
 
 /* Measure XCK phase offset */
 uint8_t measure_offset ( void ) {
@@ -83,15 +77,7 @@ void set_which_animation ( void ) {
 	if ( current & ~previous ) {
 
 		/* Go to next animation */
-		animation++;
-
-		/* Reset to first frame to avoid overrun */
-		frame = 0;
-
-		/* Reset to first animation if at end */
-		if ( animation == total_animations ) {
-			animation = 0;
-		}
+		next_animation();
 	}
 
 	/* Save state of button */
@@ -130,6 +116,9 @@ int main ( void ) {
 	/* Set initial animation speed */
 	set_animation_speed();
 
+	/* Go to first animation */
+	next_animation();
+
 	/* Enable interrupts */
 	sei();
 
@@ -142,30 +131,20 @@ int main ( void ) {
 ISR ( USART_UDRE_vect ) {
 
 	/* Write next byte to USART0 */
-	UDR0 = ( byte_output ( animation, frame, position ) / 3 );
+	UDR0 = next_byte();
 
-	/* Move to next position */
-	position++;
+	/* Move to next index */
+	idx++;
 
 	/* Do nothing until we finish this frame */
-	if ( position != total_rgb )
+	if ( idx != total_rgb )
 		return;
 
 	/* Disable UDR empty interrupt & enable TX complete interupt */
 	UCSR0B = ( _BV ( TXCIE0 ) | _BV ( TXEN0 ) );
 
-	/* Reset position */
-	position = 0;
-
-	/* Move to next frame */
-	frame++;
-
-	/* Do nothing until we finish the last frame*/
-	if ( frame != animations[animation].total_frames )
-		return;
-
-	/* Reset to first frame */
-	frame = 0;
+	/* Reset index */
+	idx = 0;
 }
 
 ISR ( PCINT2_vect ) {
