@@ -16,7 +16,7 @@ PNGS	+= $(patsubst %.gif,%.png,$(GIFS))
 PNGS	+= $(wildcard *.png)
 PNG_HS	:= $(patsubst %.png,%.png.h,$(PNGS))
 
-all : office.bin pokemon.bin
+all : office.bin pokemon.bin christmas.bin
 
 %.o : %.c municorn.h $(PNG_HS) Makefile
 	avr-gcc $(CFLAGS) -o $@ -c $<
