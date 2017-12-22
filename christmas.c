@@ -13,40 +13,46 @@ uint8_t timer0_fast = TIMER0_FAST;
 
 uint16_t total_rgb = sizeof ( struct picture );
 
-uint8_t colours;
+uint8_t spacings[] = { 4, 7, 8, 10, 15, 16 };
+
+uint8_t spacing;
 
 void next_animation ( void ) {
 
-	colours++;
-	if ( colours == ( 1 << sizeof ( struct pixel ) ) )
-		colours = 0;
+	spacing++;
+	if ( spacing == sizeof ( spacings ) )
+		spacing = 0;
 }
 
-static uint8_t brightnesses[16] = {
-	2, 4, 16, 32, 48, 64, 80, 98,
-	100, 98, 80, 64, 48, 32, 16, 4,
+#define RED ( 1 << offsetof ( struct pixel, red ) )
+#define GREEN ( 1 << offsetof ( struct pixel, green ) )
+#define BLUE ( 1 << offsetof ( struct pixel, blue ) )
+
+uint8_t magics[] = {
+	GREEN, BLUE, RED, ( BLUE | RED ), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 };
 
 uint8_t next_byte ( void ) {
-	static uint8_t magic;
-	static uint8_t subpixel;
-	uint8_t brightness;
+	static uint8_t magic = 0;
+	static uint8_t subpixel = 1;
+	static uint8_t brightness = 0;
 	uint8_t byte;
 
-	brightness = brightnesses[magic];
-	if ( ( 1 << subpixel ) & colours ) {
+	if ( subpixel & magics[magic] ) {
 		byte = brightness;
 	} else {
-		byte = ( brightness * 2 );
+		byte = 0x00;
 	}
 
-	subpixel++;
-	if ( subpixel == sizeof ( struct pixel ) ) {
-		subpixel = 0;
+	subpixel <<= 1;
+	if ( subpixel == ( 1 << sizeof ( struct pixel ) ) ) {
+		subpixel = 1;
 
 		magic++;
-		if ( magic == 16 )
+		if ( magic == spacings[spacing] )
 			magic = 0;
+
+		brightness++;
 	}
 
 	return byte;
